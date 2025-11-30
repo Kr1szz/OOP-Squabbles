@@ -28,7 +28,7 @@ public class GameView {
     private StackPane root;
     private VBox gameLayout;
     private Pane feedbackLayer;
-    private HBox cardsContainer;
+    private HBox topBar;
     private Label scoreLabel;
     private Label messageLabel;
     private Random random = new Random();
@@ -54,41 +54,41 @@ public class GameView {
     private Label levelLabel;
 
     public Scene getScene() {
-        root = new StackPane();
-        root.getStyleClass().add("root");
-
-        gameLayout = new VBox(20);
-        gameLayout.setAlignment(Pos.CENTER);
-
-        // Top Bar
-        HBox topBar = new HBox(20);
+        // Initialize UI components
+        topBar = new HBox(20);
         topBar.setAlignment(Pos.CENTER);
-
+        // End Game button with CSS class
         javafx.scene.control.Button endButton = new javafx.scene.control.Button("End Game");
-        endButton.setStyle("-fx-background-color: #ff5555; -fx-text-fill: white; -fx-font-weight: bold;");
+        endButton.getStyleClass().add("end-game-button");
         endButton.setOnAction(e -> client.sendEndGame());
-
+        // Score label with CSS class
         scoreLabel = new Label("Score: 0");
-        scoreLabel.setStyle("-fx-font-size: 24px; -fx-text-fill: white; -fx-font-weight: bold;");
-
+        scoreLabel.getStyleClass().add("score-label");
+        // Level label with CSS class
         levelLabel = new Label("Level: 1");
-        levelLabel.setStyle("-fx-font-size: 24px; -fx-text-fill: #f1fa8c; -fx-font-weight: bold;");
-
+        levelLabel.getStyleClass().add("level-label");
+        // Message label with CSS class
         messageLabel = new Label("Find the matching icon!");
-        messageLabel.setStyle("-fx-font-size: 18px; -fx-text-fill: white;");
-
+        messageLabel.getStyleClass().add("message-label");
+        // Assemble top bar
         topBar.getChildren().addAll(endButton, scoreLabel, levelLabel, messageLabel);
 
-        // Cards Area
+        // Cards container
         cardsContainer = new HBox(50);
         cardsContainer.setAlignment(Pos.CENTER);
 
+        // Layout assembly
+        gameLayout = new VBox(20);
+        gameLayout.setAlignment(Pos.CENTER);
         gameLayout.getChildren().addAll(topBar, cardsContainer);
 
         // Feedback Layer (Transparent overlay)
         feedbackLayer = new Pane();
         feedbackLayer.setPickOnBounds(false); // Allow clicks to pass through
 
+        // Root assembly
+        root = new StackPane();
+        root.getStyleClass().add("root");
         root.getChildren().addAll(gameLayout, feedbackLayer);
 
         // Initialize with waiting state
