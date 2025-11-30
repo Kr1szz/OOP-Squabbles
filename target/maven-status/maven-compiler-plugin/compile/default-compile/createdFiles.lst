@@ -1,0 +1,15 @@
+com\squabbles\view\SessionSetupView.class
+com\squabbles\logic\DeckGenerator.class
+com\squabbles\view\WelcomeView.class
+com\squabbles\network\GameServer$ClientHandler.class
+com\squabbles\model\Deck.class
+com\squabbles\view\GameView$1.class
+com\squabbles\Main.class
+com\squabbles\network\NetworkProtocol.class
+com\squabbles\view\GameView.class
+com\squabbles\model\Icon.class
+com\squabbles\model\StandardCard.class
+com\squabbles\network\GameClient.class
+com\squabbles\view\GameOverView.class
+com\squabbles\model\Card.class
+com\squabbles\network\GameServer.class
