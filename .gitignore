@@ -1,0 +1,57 @@
+#################################
+# Java / General
+#################################
+*.class
+*.log
+*.ctxt
+*.jar
+*.war
+*.ear
+hs_err_pid*
+.recommenders
+
+#################################
+# VS Code
+#################################
+.vscode/
+.history/
+
+#################################
+# IntelliJ IDEA
+#################################
+.idea/
+*.iml
+out/
+
+#################################
+# Eclipse (if someone opens it)
+#################################
+.project
+.classpath
+.cproject
+.settings/
+bin/
+
+#################################
+# Maven
+#################################
+target/
+
+#################################
+# Gradle
+#################################
+.gradle/
+build/
+!gradle-wrapper.jar
+
+#################################
+# OS Files
+#################################
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+ehthumbs.db
