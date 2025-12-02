@@ -10,7 +10,6 @@ import java.io.PrintWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Scanner;
 import java.util.concurrent.ExecutorService;
@@ -103,19 +102,47 @@ public class GameServer implements Runnable {
             centerCard = player.currentCard;
             if (!deck.isEmpty()) {
                 player.currentCard = deck.draw();
-            } else {
-                // Game Over logic or empty deck handling
+            }
+
+            // Increase score for a correct match
+            player.score++;
+
+            // Win condition: first player to reach 25 points wins
+            if (player.score >= 25) {
                 gameRunning = false;
-                broadcast(NetworkProtocol.MSG_GAME_OVER + " Player " + playerId);
+                player.sendMessage(NetworkProtocol.MSG_MATCH_RESULT + " true " + player.score);
+
+                // Personalized GAME_OVER messages
+                for (ClientHandler c : clients) {
+                    if (c.playerId == playerId) {
+                        c.sendMessage(NetworkProtocol.MSG_GAME_OVER + " You win! Score: " + c.score
+                                + " (reached 25 points)");
+                    } else {
+                        c.sendMessage(NetworkProtocol.MSG_GAME_OVER + " You lost. Player " + playerId
+                                + " reached 25 points.");
+                    }
+                }
                 return;
             }
 
-            player.score++;
-            int level = (player.score / 10) + 1;
-            if (level < 1)
-                level = 1;
+            // If the deck is empty after drawing, end the game with this player as winner
+            if (deck.isEmpty()) {
+                gameRunning = false;
+                player.sendMessage(NetworkProtocol.MSG_MATCH_RESULT + " true " + player.score);
 
-            player.sendMessage(NetworkProtocol.MSG_MATCH_RESULT + " true " + player.score + " " + level);
+                for (ClientHandler c : clients) {
+                    if (c.playerId == playerId) {
+                        c.sendMessage(NetworkProtocol.MSG_GAME_OVER + " You win! Score: " + c.score
+                                + " (deck empty)");
+                    } else {
+                        c.sendMessage(NetworkProtocol.MSG_GAME_OVER + " You lost. Player " + playerId
+                                + " won when the deck became empty.");
+                    }
+                }
+                return;
+            }
+
+            player.sendMessage(NetworkProtocol.MSG_MATCH_RESULT + " true " + player.score);
 
             // Update all clients with new center card
             // And update this player with new player card
@@ -128,15 +155,21 @@ public class GameServer implements Runnable {
             player.score--; // Optional penalty
             if (player.score < -10) {
                 gameRunning = false;
-                broadcast(NetworkProtocol.MSG_GAME_OVER + " Player " + playerId + " lost (Score < -10)");
+
+                // Personalized messages when a player falls below -10
+                for (ClientHandler c : clients) {
+                    if (c.playerId == playerId) {
+                        c.sendMessage(NetworkProtocol.MSG_GAME_OVER
+                                + " You lost. Your score went below -10.");
+                    } else {
+                        c.sendMessage(NetworkProtocol.MSG_GAME_OVER
+                                + " You win! Opponent's score went below -10.");
+                    }
+                }
                 return;
             }
 
-            int level = (player.score / 10) + 1;
-            if (level < 1)
-                level = 1;
-
-            player.sendMessage(NetworkProtocol.MSG_MATCH_RESULT + " false " + player.score + " " + level);
+            player.sendMessage(NetworkProtocol.MSG_MATCH_RESULT + " false " + player.score);
         }
     }
 
@@ -147,7 +180,7 @@ public class GameServer implements Runnable {
     }
 
     private class ClientHandler implements Runnable {
-        private Socket socket;
+
         private PrintWriter out;
         private Scanner in;
         private int playerId;
@@ -155,7 +188,7 @@ public class GameServer implements Runnable {
         private int score = 0;
 
         public ClientHandler(Socket socket, int playerId) {
-            this.socket = socket;
+
             this.playerId = playerId;
             try {
                 out = new PrintWriter(socket.getOutputStream(), true);
@@ -187,7 +220,13 @@ public class GameServer implements Runnable {
                 sendState();
             } else if (message.startsWith(NetworkProtocol.MSG_END_GAME)) {
                 gameRunning = false;
-                broadcast(NetworkProtocol.MSG_GAME_OVER + " Player " + playerId + " ended the game.");
+                for (ClientHandler c : clients) {
+                    if (c.playerId == playerId) {
+                        c.sendMessage(NetworkProtocol.MSG_GAME_OVER + " You ended the game.");
+                    } else {
+                        c.sendMessage(NetworkProtocol.MSG_GAME_OVER + " Player " + playerId + " ended the game.");
+                    }
+                }
             }
         }
 

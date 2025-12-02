@@ -31,10 +31,7 @@ public class WelcomeView {
 
     private void startSinglePlayer() {
         // Start a local server for 1 player
-        int port = 0; // Let system pick, but we need to know it.
-        // Actually, GameServer takes a port. Let's use a random one or 55556.
-        // Better: use 0 and get local port, but GameServer logic needs update to expose
-        // it or we just pick one.
+        // Start a local server for 1 player
         // Let's pick a random port between 50000 and 60000
         int randomPort = 50000 + (int) (Math.random() * 10000);
 
@@ -49,8 +46,9 @@ public class WelcomeView {
             Thread.sleep(100);
 
             client.connect("localhost", randomPort, message -> {
-                if (message.startsWith(com.squabbles.network.NetworkProtocol.MSG_START_GAME)) {
-                    javafx.application.Platform.runLater(() -> Main.setScene(new GameView(client).getScene()));
+                        if (message.startsWith(com.squabbles.network.NetworkProtocol.MSG_START_GAME)) {
+                    // false => single-player mode (no 25-points message)
+                    javafx.application.Platform.runLater(() -> Main.setScene(new GameView(client, false).getScene()));
                 }
             });
         } catch (Exception ex) {

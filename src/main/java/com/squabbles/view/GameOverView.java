@@ -11,7 +11,12 @@ public class GameOverView {
     private String winnerText;
 
     public GameOverView(String winnerText) {
-        this.winnerText = winnerText;
+        if (winnerText != null && winnerText.startsWith("GAME_OVER")) {
+            String[] parts = winnerText.split(" ", 2);
+            this.winnerText = parts.length > 1 ? parts[1].trim() : "Unknown";
+        } else {
+            this.winnerText = winnerText;
+        }
     }
 
     public Scene getScene() {
@@ -22,7 +27,7 @@ public class GameOverView {
         Label header = new Label("Game Over!");
         header.getStyleClass().add("header-label");
 
-        Label winnerLabel = new Label(winnerText + " Wins!");
+        Label winnerLabel = new Label("Winner: " + winnerText);
         winnerLabel.setStyle("-fx-font-size: 28px; -fx-text-fill: #ffd700; -fx-font-weight: bold;");
 
         Button playAgainButton = new Button("Play Again");

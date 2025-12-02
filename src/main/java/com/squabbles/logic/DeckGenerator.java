@@ -9,26 +9,30 @@ import java.util.List;
 
 public class DeckGenerator {
     private static final int P = 7;
-    private static final int ICONS_PER_CARD = P + 1; // 8
-    private static final int TOTAL_CARDS = P * P + P + 1; // 57
+
+    // Icon index layout for P = 7:
+    // Points: 1 .. P*P   (1-49)
+    // Slopes: P*P+1 .. P*P+P (50-56)
+    // Vertical: P*P+P+1 (57)
 
     public List<Card> generateDeck() {
         List<Card> deck = new ArrayList<>();
         int cardIdCounter = 1;
 
         // Family A: Slope-Intercept Lines (y = mx + b)
-        // m in [0, 4]
+        // m in [0, P-1]
         for (int m = 0; m < P; m++) {
             for (int b = 0; b < P; b++) {
                 List<Icon> cardIcons = new ArrayList<>();
 
                 // 1. Slope Icon
-                // Indices 26 to 30. m=0 -> 26, m=1 -> 27...
-                int slopeIconId = 26 + m;
+                // Ensure we use the same slope IDs as in the special card (Family C):
+                // P*P+1 .. P*P+P (50-56)
+                int slopeIconId = P * P + 1 + m;
                 cardIcons.add(new Icon(slopeIconId, "SLOPE", "m=" + m));
 
                 // 2. Point Icons
-                // y = mx + b (mod 5)
+                // y = mx + b (mod P)
                 for (int x = 0; x < P; x++) {
                     int y = (m * x + b) % P;
                     int pointIconId = getPointIconId(x, y);
@@ -46,7 +50,6 @@ public class DeckGenerator {
 
             // 1. Vertical Icon
             // Index 31
-            int verticalIconId = P * P + P + 1; // 57 for p=7? No.
             // Indices:
             // Points: 1 to P*P (1-49)
             // Slopes: P*P+1 to P*P+P (50-56)

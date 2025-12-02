@@ -3,6 +3,7 @@ package com.squabbles.view;
 import com.squabbles.Main;
 import com.squabbles.network.GameClient;
 import com.squabbles.network.NetworkProtocol;
+import com.squabbles.util.IconLoader;
 import javafx.animation.FadeTransition;
 import javafx.animation.ParallelTransition;
 import javafx.animation.TranslateTransition;
@@ -10,6 +11,10 @@ import javafx.application.Platform;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.Label;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
+import javafx.scene.Node;
+
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.StackPane;
@@ -25,10 +30,13 @@ import java.util.TimerTask;
 
 public class GameView {
     private GameClient client;
+    private final boolean multiplayer;
+
     private StackPane root;
     private VBox gameLayout;
     private Pane feedbackLayer;
     private HBox topBar;
+    private HBox cardsContainer;
     private Label scoreLabel;
     private Label messageLabel;
     private Random random = new Random();
@@ -36,27 +44,26 @@ public class GameView {
     private double lastClickX = 0;
     private double lastClickY = 0;
 
-    // 57 Vibrant Colorful Emojis (No Black & White)
-    private static final String[] EMOJIS = {
-            "?", // 0 (unused)
-            "🍎", "🍊", "🍋", "🍌", "🍉", "🍇", "🍓", "🍑", "🍒", "🍍", // 1-10
-            "🥝", "🥕", "🌽", "🍅", "🌶️", "🫑", "🥦", "🍏", "🥭", "🍐", // 11-20
-            "🌸", "🌺", "🌻", "🌷", "🌹", "🥀", "🌼", "💐", "🪻", "💮", // 21-30
-            "❤️", "💛", "💚", "💙", "💜", "🧡", "💗", "💖", "💝", "⭐", // 31-40
-            "🌟", "✨", "💫", "🌈", "☀️", "🔥", "💧", "🎈", "🎀", "🎁", // 41-50
-            "🏀", "⚽", "🎨", "🎭", "🍕", "🧁", "🎂" // 51-57
-    };
+    private long lastMatchTime = 0;
+    private int comboCount = 0;
 
-    public GameView(GameClient client) {
+    // Per-turn click lock: one attempt at a time per player
+    private boolean canClick = true;
+
+    private static final String MULTI_INSTRUCTION =
+            "Your turn! First to 25 points wins. Find the matching icon.";
+    private static final String SINGLE_INSTRUCTION = "Match as many icons as you can!";
+
+    public GameView(GameClient client, boolean multiplayer) {
         this.client = client;
+        this.multiplayer = multiplayer;
     }
-
-    private Label levelLabel;
 
     public Scene getScene() {
         // Initialize UI components
         topBar = new HBox(20);
         topBar.setAlignment(Pos.CENTER);
+        topBar.getStyleClass().add("top-bar");
         // End Game button with CSS class
         javafx.scene.control.Button endButton = new javafx.scene.control.Button("End Game");
         endButton.getStyleClass().add("end-game-button");
@@ -64,14 +71,12 @@ public class GameView {
         // Score label with CSS class
         scoreLabel = new Label("Score: 0");
         scoreLabel.getStyleClass().add("score-label");
-        // Level label with CSS class
-        levelLabel = new Label("Level: 1");
-        levelLabel.getStyleClass().add("level-label");
         // Message label with CSS class
-        messageLabel = new Label("Find the matching icon!");
+        String initialText = multiplayer ? MULTI_INSTRUCTION : SINGLE_INSTRUCTION;
+        messageLabel = new Label(initialText);
         messageLabel.getStyleClass().add("message-label");
         // Assemble top bar
-        topBar.getChildren().addAll(endButton, scoreLabel, levelLabel, messageLabel);
+        topBar.getChildren().addAll(endButton, scoreLabel, messageLabel);
 
         // Cards container
         cardsContainer = new HBox(50);
@@ -113,20 +118,30 @@ public class GameView {
                 Platform.runLater(() -> updateBoard(centerData, playerData));
             }
         } else if (message.startsWith(NetworkProtocol.MSG_MATCH_RESULT)) {
-            // MSG_MATCH_RESULT success score level
+            // MSG_MATCH_RESULT success score
             String[] parts = message.split(" ");
             boolean success = Boolean.parseBoolean(parts[1]);
             int score = Integer.parseInt(parts[2]);
-            int level = (parts.length > 3) ? Integer.parseInt(parts[3]) : 1;
 
             Platform.runLater(() -> {
                 scoreLabel.setText("Score: " + score);
-                levelLabel.setText("Level: " + level);
 
                 if (success) {
                     messageLabel.setText("Correct! +1");
                     messageLabel.setTextFill(Color.LIMEGREEN);
                     showFloatingFeedback(lastClickX, lastClickY, "+1", Color.LIMEGREEN);
+
+                    // Combo Logic
+                    long currentTime = System.currentTimeMillis();
+                    if (currentTime - lastMatchTime < 3000) { // 3 seconds window
+                        comboCount++;
+                        if (comboCount > 1) {
+                            showFloatingFeedback(lastClickX, lastClickY - 50, "Combo x" + comboCount + "!", Color.GOLD);
+                        }
+                    } else {
+                        comboCount = 1;
+                    }
+                    lastMatchTime = currentTime;
                 } else {
                     messageLabel.setText("Wrong! -1");
                     messageLabel.setTextFill(Color.RED);
@@ -138,11 +153,15 @@ public class GameView {
                     @Override
                     public void run() {
                         Platform.runLater(() -> {
-                            messageLabel.setText("Find the matching icon!");
+                            String base = multiplayer ? MULTI_INSTRUCTION : SINGLE_INSTRUCTION;
+                            messageLabel.setText(base);
                             messageLabel.setTextFill(Color.WHITE);
                         });
                     }
                 }, 1000);
+
+                // After result, allow the player to act again (one attempt at a time)
+                canClick = true;
             });
         } else if (message.startsWith(NetworkProtocol.MSG_GAME_OVER)) {
             Platform.runLater(() -> Main.setScene(new GameOverView(message).getScene()));
@@ -203,44 +222,105 @@ public class GameView {
         cardPane.setPrefSize(size, size);
         cardPane.setMaxSize(size, size);
 
-        for (String iconIdStr : iconIds) {
+        // Precompute layout parameters to minimise overlap
+        int iconCount = iconIds.length;
+        double nodeSize = 60 * scale;
+        double maxRadius = (size / 2) - nodeSize;
+
+        for (int index = 0; index < iconIds.length; index++) {
+            String iconIdStr = iconIds[index];
             int iconId = Integer.parseInt(iconIdStr);
-            String emoji = (iconId > 0 && iconId < EMOJIS.length) ? EMOJIS[iconId] : "?";
 
-            Text iconView = new Text(emoji);
-            // Add colorful glow effect
-            iconView.setStyle("-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.3), 5, 0, 2, 2);");
+            Node iconNode;
+            Image iconImage = IconLoader.getInstance().loadIcon(iconId);
 
-            // Random Sizing
-            double fontSize = (40 + random.nextInt(40)) * scale;
-            iconView.setFont(Font.font(fontSize));
+            // Palette for per-icon base glow colours.
+            // We derive the color from iconId so the SAME icon looks the same on every card.
+            String[] baseColors = {
+                    "#f5a97f", "#8aadf4", "#a6da95", "#f5bde6",
+                    "#c6a0f6", "#eed49f", "#f0c6c6", "#7dc4e4"
+            };
+            String baseColor = baseColors[Math.floorMod(iconId, baseColors.length)];
 
-            // Random Positioning
-            double radius = (size / 2) - (fontSize);
-            double range = radius * 0.7;
+            if (iconImage != null) {
+                ImageView imageView = new ImageView(iconImage);
+                // Scale image relative to card size
+                double imgSize = (40 + random.nextInt(40)) * scale;
+                imageView.setFitWidth(imgSize);
+                imageView.setFitHeight(imgSize);
+                imageView.setPreserveRatio(true);
 
-            double x = (random.nextDouble() * 2 * range) - range;
-            double y = (random.nextDouble() * 2 * range) - range;
+                // Add colorful glow effect per icon
+                imageView.setStyle("-fx-effect: dropshadow(gaussian, " + baseColor + ", 8, 0.7, 0, 0);");
+                iconNode = imageView;
+            } else {
+                String emoji = IconLoader.getEmojiFallback(iconId);
+                Text iconText = new Text(emoji);
 
-            iconView.setTranslateX(x);
-            iconView.setTranslateY(y);
+                // Random Sizing
+                double fontSize = (40 + random.nextInt(40)) * scale;
+                iconText.setFont(Font.font(fontSize));
 
-            // Rotation
-            iconView.setRotate(random.nextDouble() * 360);
+                // Per-emoji colorful glow effect
+                iconText.setStyle("-fx-effect: dropshadow(gaussian, " + baseColor + ", 8, 0.7, 0, 0);");
+                iconNode = iconText;
+            }
+
+            // Evenly-spaced polar positioning to avoid heavy overlap
+            double angle = (2 * Math.PI * index) / iconCount;
+            // Use 2 concentric rings if there are many icons
+            double ringFactor = (iconCount > 6 && index % 2 == 0) ? 0.5 : 0.8;
+            double radius = maxRadius * ringFactor;
+
+            double x = radius * Math.cos(angle);
+            double y = radius * Math.sin(angle);
+
+            iconNode.setTranslateX(x);
+            iconNode.setTranslateY(y);
+
+            // Slight random rotation for a more playful look
+            iconNode.setRotate(random.nextDouble() * 360);
 
             if (interactive) {
-                iconView.getStyleClass().add("icon-button");
-                iconView.setCursor(javafx.scene.Cursor.HAND);
-                // Stronger hover effect handled in CSS, but we can add specific style here if
-                // needed
-                iconView.setOnMouseClicked(e -> {
+                iconNode.getStyleClass().add("icon-button");
+                iconNode.setCursor(javafx.scene.Cursor.HAND);
+
+                // Per-icon colorful hover effect (different color for each icon)
+                String[] hoverColors = {
+                        "#f5a97f", "#8aadf4", "#a6da95", "#f5bde6", "#c6a0f6", "#eed49f", "#f0c6c6"
+                };
+                String hoverColor = hoverColors[random.nextInt(hoverColors.length)];
+                String baseStyle = iconNode.getStyle() == null ? "" : iconNode.getStyle();
+
+                iconNode.setOnMouseEntered(e -> {
+                    iconNode.setStyle(baseStyle +
+                            "-fx-effect: dropshadow(three-pass-box, " + hoverColor + ", 20, 0, 0, 0);" +
+                            "-fx-scale-x: 1.08; -fx-scale-y: 1.08;");
+                });
+
+                iconNode.setOnMouseExited(e -> {
+                    iconNode.setStyle(baseStyle);
+                });
+
+                iconNode.setOnMouseClicked(e -> {
+                    if (!canClick) {
+                        // Ignore extra clicks until the server responds
+                        return;
+                    }
+                    canClick = false;
                     lastClickX = e.getSceneX();
                     lastClickY = e.getSceneY();
+                    if (multiplayer) {
+                        messageLabel.setText("Waiting for opponent...");
+                    } else {
+                        messageLabel.setText("Checking your move...");
+                    }
+                    messageLabel.setTextFill(Color.LIGHTBLUE);
                     client.sendMatchAttempt(iconId);
                 });
             }
 
-            cardPane.getChildren().add(iconView);
+            cardPane.getChildren().add(iconNode);
         }
 
         Label titleLabel = new Label(title);

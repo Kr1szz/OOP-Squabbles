@@ -1,8 +1,5 @@
 package com.squabbles.model;
 
-import java.util.ArrayList;
-import java.util.List;
-
 public class Icon {
     private final int id;
     private final String type; // "POINT", "SLOPE", "VERTICAL"
