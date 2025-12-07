@@ -18,6 +18,7 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.*;
+import java.net.URI;
 import java.util.Enumeration;
 
 public class SessionSetupView {
@@ -242,7 +243,7 @@ public class SessionSetupView {
 
     private String getPublicIpAddress() {
         try {
-            URL url = new URL("https://checkip.amazonaws.com");
+            URL url = URI.create("https://checkip.amazonaws.com").toURL();
             URLConnection con = url.openConnection();
             con.setConnectTimeout(3000);
             con.setReadTimeout(3000);

@@ -77,7 +77,7 @@ public class GameView {
         // Score label with CSS class
         scoreLabel = new Label("Score: 0");
         scoreLabel.getStyleClass().add("score-label");
-        
+
         // Lives label
         livesLabel = new Label("Lives: 5");
         livesLabel.getStyleClass().add("score-label"); // Reuse style for now
@@ -92,7 +92,7 @@ public class GameView {
         String initialText = multiplayer ? MULTI_INSTRUCTION : SINGLE_INSTRUCTION;
         messageLabel = new Label(initialText);
         messageLabel.getStyleClass().add("message-label");
-        
+
         // Assemble top bar
         topBar.getChildren().addAll(endButton, scoreLabel, livesLabel, turnTimerBar, messageLabel);
 
@@ -157,13 +157,13 @@ public class GameView {
             Platform.runLater(() -> {
                 scoreLabel.setText("Score: " + newScore);
                 livesLabel.setText("Lives: " + newLives);
-                
+
                 long currentTime = System.currentTimeMillis();
                 if (success) {
                     messageLabel.setText("Match Found! +1");
                     messageLabel.setTextFill(Color.LIGHTGREEN);
                     showFloatingFeedback(lastClickX, lastClickY, "+1", Color.LIGHTGREEN);
-                    
+
                     // Combo Logic
                     if (currentTime - lastMatchTime < 2000) {
                         comboCount++;
@@ -217,9 +217,10 @@ public class GameView {
         }
         turnTimerBar.setProgress(1.0);
         timerAnimation = new javafx.animation.Timeline(
-            new javafx.animation.KeyFrame(Duration.ZERO, new javafx.animation.KeyValue(turnTimerBar.progressProperty(), 1.0)),
-            new javafx.animation.KeyFrame(Duration.seconds(10), new javafx.animation.KeyValue(turnTimerBar.progressProperty(), 0.0))
-        );
+                new javafx.animation.KeyFrame(Duration.ZERO,
+                        new javafx.animation.KeyValue(turnTimerBar.progressProperty(), 1.0)),
+                new javafx.animation.KeyFrame(Duration.seconds(10),
+                        new javafx.animation.KeyValue(turnTimerBar.progressProperty(), 0.0)));
         timerAnimation.play();
     }
 

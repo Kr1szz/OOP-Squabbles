@@ -24,7 +24,7 @@ public class LobbyServer {
         if (matchmakingQueue.contains(client))
             return;
 
-        System.out.println("Player " + client.getPlayerId() + " joined queue.");
+        System.out.println("Player " + client.getPlayerName() + " (ID: " + client.getPlayerId() + ") joined queue.");
         matchmakingQueue.add(client);
         client.sendMessage(NetworkProtocol.MSG_JOIN_QUEUE + " Waiting for opponent...");
 
@@ -41,10 +41,10 @@ public class LobbyServer {
     }
 
     private void createGameRoom(ServerClient p1, ServerClient p2) {
-        System.out.println("Match found: " + p1.getPlayerId() + " vs " + p2.getPlayerId());
+        System.out.println("Match found: " + p1.getPlayerName() + " vs " + p2.getPlayerName());
 
-        p1.sendMessage(NetworkProtocol.MSG_GAME_FOUND + " Player " + p2.getPlayerId());
-        p2.sendMessage(NetworkProtocol.MSG_GAME_FOUND + " Player " + p1.getPlayerId());
+        p1.sendMessage(NetworkProtocol.MSG_GAME_FOUND + " " + p2.getPlayerName());
+        p2.sendMessage(NetworkProtocol.MSG_GAME_FOUND + " " + p1.getPlayerName());
 
         List<ServerClient> players = new ArrayList<>();
         players.add(p1);
@@ -56,7 +56,7 @@ public class LobbyServer {
     }
 
     public synchronized void startBotGame(ServerClient player, int difficulty) {
-        System.out.println("Starting game for Player " + player.getPlayerId() + " with difficulty " + difficulty);
+        System.out.println("Starting game for Player " + player.getPlayerName() + " with difficulty " + difficulty);
 
         List<ServerClient> players = new ArrayList<>();
         players.add(player);
