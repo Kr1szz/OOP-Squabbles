@@ -5,6 +5,7 @@
   <artifactId>matcher</artifactId>
   <version>1.0-SNAPSHOT</version>
   <build>
+    <finalName>matcher-v2</finalName>
     <plugins>
       <plugin>
         <artifactId>maven-compiler-plugin</artifactId>

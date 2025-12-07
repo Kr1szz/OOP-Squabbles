@@ -1,143 +1,134 @@
-/* General Aesthetic: Modern Deep Dark Theme */
+/* Clash Royale Inspired Theme */
 .root {
-    background-color: #1e1e2e;
-    -fx-background-color: #1e1e2e;
-    /* Deep dark blue-grey */
-    font-family: 'Helvetica', 'Arial', sans-serif;
-    -fx-font-family: 'Helvetica', 'Arial', sans-serif;
-    -fx-text-fill: #cad3f5;
-    /* Soft lavender-white text */
+    -fx-background-color: radial-gradient(center 50% 50%, radius 100%, #2b32b2, #141e30);
+    -fx-font-family: 'Segoe UI', sans-serif;
 }
 
-/* Button Base Style: Vibrant and Rounded */
-.button {
-    background-color: #8aadf4;
-    -fx-background-color: #8aadf4;
-    /* Periwinkle Blue */
-    -fx-text-fill: #181926;
-    /* Dark text for contrast */
-    -fx-background-radius: 12px;
-    padding: 12px 24px;
-    -fx-padding: 12px 24px;
-    cursor: pointer;
-    -fx-cursor: hand;
-    font-size: 16px;
-    -fx-font-size: 16px;
-    font-weight: bold;
+.header-label {
+    -fx-font-size: 48px;
     -fx-font-weight: bold;
-    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.2), 5, 0, 0, 3);
-    border-width: 0;
-    -fx-border-width: 0;
-    transition: all 0.2s ease-in-out;
-    -fx-transition: all 0.2s ease-in-out;
+    -fx-text-fill: #ffffff;
+    -fx-effect: dropshadow(gaussian, #000000, 0, 0, 0, 4);
+    -fx-stroke: black;
+    -fx-stroke-width: 2px;
+    -fx-padding: 20;
 }
 
-/* Button Hover Effect: Lighter and Glow */
+/* Main Blue 3D Button */
+.button {
+    -fx-background-color:
+        linear-gradient(#4d90fe, #4787ed),
+        radial-gradient(center 50% -40%, radius 200%, #4d90fe 45%, #4787ed 50%);
+    -fx-background-radius: 5;
+    -fx-background-insets: 0, 1;
+    -fx-text-fill: white;
+    -fx-font-size: 18px;
+    -fx-font-weight: bold;
+    -fx-effect: dropshadow(three-pass-box, rgba(0, 0, 0, 0.6), 5, 0, 0, 4);
+    -fx-border-color: #2f5bb7;
+    -fx-border-width: 0 0 4 0;
+    -fx-border-radius: 5;
+    -fx-padding: 10 20 14 20;
+    /* Extra bottom padding to account for border */
+    -fx-cursor: hand;
+    -fx-alignment: center;
+}
+
 .button:hover {
-    background-color: #b7bdf8;
-    -fx-background-color: #b7bdf8;
-    /* Lighter Periwinkle */
-    -fx-effect: dropshadow(gaussian, rgba(138, 173, 244, 0.5), 15, 0, 0, 0);
+    -fx-background-color: linear-gradient(#5da0ff, #5797fd);
     -fx-scale-x: 1.02;
     -fx-scale-y: 1.02;
 }
 
-/* Button Pressed Effect */
 .button:pressed {
-    background-color: #5b6078;
-    -fx-background-color: #5b6078;
-    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.2), 2, 0, 0, 1);
-    -fx-scale-x: 0.98;
-    -fx-scale-y: 0.98;
+    -fx-background-color: #2f5bb7;
+    -fx-border-width: 0 0 0 0;
+    -fx-padding: 12 20 12 20;
+    /* Shift text down */
+    -fx-translate-y: 4;
+    -fx-effect: none;
 }
 
-/* Style for Icon ImageViews */
-.icon-button {
-    background-color: transparent;
-    -fx-background-color: transparent;
-    padding: 0;
-    -fx-padding: 0;
-    border-color: transparent;
-    -fx-border-color: transparent;
-    cursor: pointer;
-    -fx-cursor: hand;
+.button:disabled {
+    -fx-opacity: 0.6;
+    -fx-background-color: #555;
+    -fx-border-color: #333;
 }
 
-/* Icon Hover Effect: base style; per-icon colors handled in code */
-.icon-button:hover {
-    -fx-effect: dropshadow(three-pass-box, rgba(255,255,255,0.4), 10, 0, 0, 0);
-}
-
-.label {
-    -fx-text-fill: #cad3f5;
-    font-size: 18px;
-    -fx-font-size: 18px;
-}
-
-.header-label {
-    font-size: 36px;
-    -fx-font-size: 36px;
-    font-weight: bold;
-    -fx-font-weight: bold;
-    -fx-text-fill: #c6a0f6;
-    /* Mauve/Purple accent */
-    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.3), 2, 0, 0, 2);
-    padding: 20px;
-    -fx-padding: 20px;
-}
-
-/* Top bar styling for in-game HUD */
-.top-bar {
-    background-color: rgba(24, 25, 38, 0.95);
-    -fx-background-color: rgba(24, 25, 38, 0.95);
-    padding: 16px 24px 16px 24px;
-    -fx-padding: 16 24 16 24;
-    -fx-spacing: 20;
-    -fx-alignment: center;
-    -fx-background-radius: 0 0 16 16;
-    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.5), 10, 0, 0, 4);
-}
-
-.score-label {
-    font-size: 20px;
-    -fx-font-size: 20px;
-    font-weight: bold;
-    -fx-font-weight: bold;
-    -fx-text-fill: #a6da95;
-}
-
-.message-label {
-    font-size: 16px;
-    -fx-font-size: 16px;
-    -fx-text-fill: #f5bde6;
-}
-
-.status-label {
-    font-size: 16px;
-    -fx-font-size: 16px;
-    -fx-text-fill: #8aadf4;
-}
-
+/* Orange/Gold Button Variant (for End Game or Special Actions) */
 .end-game-button {
-    background-color: #f5a97f;
-    background: linear-gradient(to right, #f5a97f, #ed8796);
-    -fx-background-color: linear-gradient(to right, #f5a97f, #ed8796);
-    -fx-text-fill: #181926;
+    -fx-background-color: linear-gradient(#ffcc00, #ffaa00);
+    -fx-border-color: #cc8800;
+    -fx-text-fill: #5c3a00;
+    /* Dark brown text */
 }
 
 .end-game-button:hover {
-    background-color: #f4dbd6;
-    background: linear-gradient(to right, #f4dbd6, #f0c6c6);
-    -fx-background-color: linear-gradient(to right, #f4dbd6, #f0c6c6);
+    -fx-background-color: linear-gradient(#ffdd33, #ffbb00);
 }
 
-.secondary-button {
-    background-color: #363a4f;
-    -fx-background-color: #363a4f;
-    -fx-text-fill: #cad3f5;
+.end-game-button:pressed {
+    -fx-background-color: #cc8800;
 }
 
-.secondary-button:hover {
-    background-color: #494d64;
-    -fx-background-color: #494d64;
+.text-field {
+    -fx-background-color: #ffffff;
+    -fx-text-fill: #333;
+    -fx-font-size: 16px;
+    -fx-background-radius: 5;
+    -fx-border-color: #aaa;
+    -fx-border-width: 2;
+    -fx-border-radius: 5;
+    -fx-padding: 8;
+    -fx-effect: dropshadow(three-pass-box, rgba(0, 0, 0, 0.2), 5, 0, 0, 2);
+}
+
+.text-field:focused {
+    -fx-border-color: #4d90fe;
+}
+
+.card-pane {
+    -fx-background-color: #fdfbf7;
+    /* Parchment white */
+    -fx-background-radius: 50%;
+    -fx-border-color: #d4af37;
+    /* Gold border */
+    -fx-border-width: 4;
+    -fx-border-radius: 50%;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.5), 15, 0, 0, 5);
+}
+
+.score-label {
+    -fx-font-size: 24px;
+    -fx-text-fill: #ffd700;
+    /* Gold */
+    -fx-font-weight: bold;
+    -fx-effect: dropshadow(gaussian, black, 2, 1.0, 0, 0);
+}
+
+.message-label {
+    -fx-font-size: 20px;
+    -fx-text-fill: #ffffff;
+    -fx-font-weight: bold;
+    -fx-effect: dropshadow(gaussian, black, 3, 1.0, 0, 0);
+}
+
+.top-bar {
+    -fx-padding: 15;
+    -fx-background-color: rgba(0, 0, 0, 0.4);
+    -fx-background-radius: 0 0 10 10;
+    -fx-border-color: #d4af37;
+    -fx-border-width: 0 0 2 0;
+}
+
+.progress-bar .bar {
+    -fx-background-color: linear-gradient(#ff55ff, #d000d0);
+    /* Elixir Pink/Purple */
+    -fx-background-radius: 4;
+    -fx-background-insets: 0;
+}
+
+.progress-bar .track {
+    -fx-background-color: #333;
+    -fx-background-radius: 4;
 }

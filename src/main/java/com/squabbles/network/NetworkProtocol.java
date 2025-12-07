@@ -12,4 +12,12 @@ public class NetworkProtocol {
     public static final String MSG_END_GAME = "END_GAME";
 
     public static final int PORT = 55555; // Default, can be dynamic
+
+    // Matchmaking & Lobby
+    public static final String MSG_JOIN_QUEUE = "JOIN_QUEUE";
+    public static final String MSG_PLAY_BOT = "PLAY_BOT"; // + difficulty (SIMPLE/ADVANCED)
+    public static final String MSG_GAME_FOUND = "GAME_FOUND"; // + opponentName
+    public static final String MSG_OPPONENT_DISCONNECTED = "OPPONENT_DISCONNECTED";
+    public static final String MSG_TURN_UPDATE = "TURN_UPDATE"; // + playerId (whose turn it is)
+    public static final String MSG_ERROR = "ERROR";
 }

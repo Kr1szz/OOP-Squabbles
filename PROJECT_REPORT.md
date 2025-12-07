@@ -1,82 +1,106 @@
-# Project Document: OOP Squabbles (Icon Matcher Game)
+# Squabbles: The Icon Matcher - Project Report
 
-## 1. Introduction and Game Overview
-This document outlines the design and implementation plan for the **OOP Squabbles (Icon Matcher Game)**, a two-player, multi-threaded application developed in Java. The project's goal is to satisfy the requirements for the **M.C.A. Continuous Internal Evaluation (CIE) Mini Project** by demonstrating core Object-Oriented Programming (OOP) principles, multi-threading, and robust exception handling.
+## 1. Project Overview
+**Squabbles** is a fast-paced, real-time multiplayer icon matching game built with Java. The core mechanic involves finding the single matching icon between two cards—your card and the center card. The game supports multiplayer (1v1), single-player vs. Bot, and a practice mode. It features a modern JavaFX user interface, network-based gameplay, and persistent player statistics using SQLite.
 
-The game is a text-based adaptation of the "Spot It!" or "Dobble" card game, focusing on speed and pattern matching.
+## 2. Key Features
+*   **Multiplayer (1v1)**: Play against another human player over a local network.
+*   **Single Player (vs Bot)**: Challenge an AI opponent with adjustable difficulty.
+*   **Practice Mode**: Play solo to hone your skills without an opponent.
+*   **Game Mechanics**:
+    *   **Turn-Based Action**: Players take turns to find the match.
+    *   **10-Second Timer**: Each turn has a strict 10-second time limit.
+    *   **Lives System**: Players start with 5 lives. Wrong guesses deduct a life.
+    *   **Scoring**: +1 point for a correct match. First to 10 points wins.
+*   **Persistence**: Player names and win/loss statistics are stored in a local SQLite database (`squabbles.db`).
+*   **Modern UI**: A dark-themed, responsive UI built with JavaFX and CSS, featuring animations and visual feedback.
 
-### 1.1 Game Rules (Core Logic)
-*   **Deck**: A special deck of 54 cards is used. Each card features exactly 8 icons.
-*   **The Key Rule**: Any two cards in the entire deck share **exactly one matching icon**.
-*   **Setup**:
-    *   The Dealer (Server) holds the remaining cards.
-    *   Player 1 and Player 2 each receive one **Active Card**.
-*   **Gameplay**:
-    1.  The Dealer (Server) places a card face-up (the **Center Card**).
-    2.  Both players simultaneously look at their Active Card and the Center Card to find the single matching icon.
-    3.  The first player to submit the correct matching icon (via a text command) wins the Center Card.
-    4.  The winning player places the won card face-up on their pile, and this card immediately becomes their new **Active Card** for the next round.
-*   **End Game**: The game continues until the Dealer runs out of cards. The player who has collected the most cards wins.
+## 3. Technical Architecture
+The project follows a **Client-Server** architecture using Java Sockets for communication and JavaFX for the presentation layer.
 
----
+### 3.1. Server-Side (`com.squabbles.network`)
+The server manages game state, matchmaking, and client connections.
+*   **`GameServer`**: The entry point. It listens on a specific port (default: 5555) and accepts incoming socket connections.
+*   **`LobbyServer`**: Manages the matchmaking queue. It pairs players into a `GameRoom` or creates a bot game.
+*   **`GameRoom`**: The core game engine. It handles:
+    *   **State Management**: Holds the `Deck`, `centerCard`, and player scores/lives.
+    *   **Turn Logic**: Enforces the turn order and manages the 10-second `turnTimer`.
+    *   **Validation**: Verifies if a player's move (icon match) is correct.
+    *   **Broadcasting**: Sends state updates (`MSG_UPDATE_CARDS`, `MSG_TURN_UPDATE`) to all players in the room.
+*   **`ServerClient`**: Represents a connected player. It handles reading/writing to the socket and stores player-specific data (name, score, lives).
+*   **`BotClient`**: A subclass of `ServerClient` that simulates an AI player. It runs on a separate thread and automatically "finds" matches after a delay.
 
-## 2. OOP Concepts Coverage
-This project is specifically designed to cover the required OOP and advanced Java concepts for the evaluation.
+### 3.2. Client-Side (`com.squabbles.view`, `com.squabbles.network`)
+The client handles the UI and communicates user actions to the server.
+*   **`GameClient`**: Manages the socket connection. It sends requests (e.g., `MSG_MATCH_ATTEMPT`) and listens for server messages on a background thread. It uses callbacks to update the UI.
+*   **`WelcomeView`**: The landing screen. It captures the player's name, initializes the database, and allows mode selection.
+*   **`GameView`**: The main gameplay screen. It renders the cards, handles mouse clicks, displays the timer/lives, and shows visual feedback (animations).
+*   **`GameOverView`**: Displays the final result and allows returning to the main menu.
 
-| Concept | Required Criteria | Implementation Details |
-| :--- | :--- | :--- |
-| **Inheritance** | Covered | A base class `Card` is extended by classes like `StandardCard`, `CenterCard`, and `PlayerActiveCard`. This establishes a clear hierarchy. |
-| **Polymorphism** | Covered | The central method `findAndCheckMatch(Card other)` is defined in the base `Card` class but will be overridden or implemented differently in the game logic to determine the match outcome based on card type. |
-| **Threads** | Covered (Critical) | A `GameServer` class spawns a dedicated `PlayerHandlerThread` for each of the two players. This is mandatory for simultaneously receiving input and accurately recording the fastest response time. |
-| **Packages** | Covered | The entire codebase is organized into logical, domain-specific packages for maintainability and clear architecture (e.g., `com.squabbles.model`, `com.squabbles.network`). |
-| **Exception Handling** | Covered | Custom exceptions will be used to ensure application robustness, especially under high-speed input conditions (e.g., `InvalidIconSubmissionException`, `ConnectionDroppedException`). |
-| **Generics** | Covered (Recommended) | The central `Deck` class will be defined using generics, e.g., `Deck<T extends Card>`, to ensure type safety when managing the card inventory. |
-| **RESTful API** | Bonus/Phase II | Can be demonstrated by making a simple API call (e.g., to a placeholder service) to log the final match results and fastest times after the game concludes. |
+### 3.3. Data Persistence (`com.squabbles.util`)
+*   **`DatabaseManager`**: Uses JDBC to connect to a SQLite database. It handles creating the `players` table and updating win/loss records.
+    *   **Schema**: Table `players` (`name` TEXT PRIMARY KEY, `wins` INTEGER, `losses` INTEGER).
 
----
+### 3.4. Game Logic (`com.squabbles.model`, `com.squabbles.logic`)
+*   **`DeckGenerator`**: Uses a mathematical algorithm (Projective Plane geometry) to generate a valid Dobble/Spot It! style deck where any two cards share exactly one symbol.
+*   **`Card` & `Icon`**: Model classes representing the game entities.
 
-## 3. Design and Architecture
-The application follows a standard **Client-Server Architecture** using Java Sockets for communication and a clear separation of concerns (Model-Logic-Network).
+## 4. Code Structure
+```
+src/main/java/com/squabbles/
+├── logic/
+│   └── DeckGenerator.java       # Math logic for card generation
+├── model/
+│   ├── Card.java                # Card entity
+│   └── Icon.java                # Icon entity
+├── network/
+│   ├── BotClient.java           # AI Logic
+│   ├── GameClient.java          # Client networking
+│   ├── GameRoom.java            # Game session logic (Timer, Turns)
+│   ├── GameServer.java          # Server entry point
+│   ├── LobbyServer.java         # Matchmaking
+│   ├── NetworkProtocol.java     # Message constants (e.g., "MATCH_ATTEMPT")
+│   └── ServerClient.java        # Player connection handler
+├── util/
+│   ├── DatabaseManager.java     # SQLite JDBC handler
+│   └── IconLoader.java          # Image/Emoji resource loader
+├── view/
+│   ├── GameOverView.java        # End screen
+│   ├── GameView.java            # Main game UI
+│   ├── SessionSetupView.java    # (Legacy/Alternative setup)
+│   └── WelcomeView.java         # Main menu
+└── Main.java                    # Application entry point
+```
 
-### 3.1 Class Structure (Model Layer)
-The following classes represent the core game entities, leveraging Inheritance and Polymorphism:
+## 5. How It Works (Flow)
+1.  **Start**: User runs `Main`. `WelcomeView` appears.
+2.  **Connect**: User enters name and clicks **"Submit Name"**. Game buttons enable. User clicks "Single Player" or "Practice Mode". `GameServer` accepts connection.
+3.  **Setup**: `LobbyServer` creates a `GameRoom` with the player and a `BotClient`.
+4.  **Game Loop**:
+    *   `GameRoom` broadcasts `MSG_START_GAME`.
+    *   **Turn Start**: `GameRoom` picks a player, starts the 10s timer, and sends `MSG_TURN_UPDATE`.
+    *   **Action**: Player clicks an icon. `GameClient` sends `MSG_MATCH_ATTEMPT <iconId>`.
+    *   **Validation**: `GameRoom` checks if it's the player's turn and if the match is valid.
+    *   **Result**:
+        *   **Valid**: Score +1, Deck updates, Timer resets.
+        *   **Invalid**: Lives -1.
+        *   **Timeout**: Turn skips to opponent.
+    *   **Update**: `GameRoom` broadcasts new state (`MSG_UPDATE_CARDS`, `MSG_MATCH_RESULT`).
+5.  **End**: If a player reaches 10 points (Win) or 0 lives (Loss), `MSG_GAME_OVER` is sent. Database stats are updated.
 
-| Class/Interface | Type | Responsibilities | Key OOP Tie-in |
-| :--- | :--- | :--- | :--- |
-| `Card` | Base Class | Defines fundamental properties: `cardId`, `Set<String> icons`. Contains the abstract `findMatch(Card other)`. | Inheritance, Polymorphism |
-| `Deck` | Logic/Model | Manages the list of cards. Generates the initial 54 cards using the special algorithm. | Generics (`Deck<Card>`), Encapsulation |
-| `Player` | Model | Stores player state: name, score (cards collected), `activeCard`. | Encapsulation |
-| `GameServer` | Network/Controller | Initializes the deck and board, manages the main game loop, and accepts client connections. | Threading (Main) |
+## 6. How to Run
+1.  **Prerequisites**: Ensure you have Java 21 and Maven installed.
+2.  **Build**: Open a terminal in the project root and run:
+    ```bash
+    mvn clean package
+    ```
+3.  **Run**: Execute the batch file:
+    ```bash
+    run_console.bat
+    ```
 
-### 3.2 Network and Threading Architecture
-1.  **Server Initialization**: The `GameServer` starts and listens on a specific port.
-2.  **Client Connection**: When a player runs the `GameClient`, a connection is established.
-3.  **Dedicated Threads**: Upon connection, the `GameServer` immediately creates and starts a separate `PlayerHandlerThread` for that player.
-
-| Thread/Component | Responsibility | Why a Thread is Needed |
-| :--- | :--- | :--- |
-| **GameServer** (Main Thread) | Manages the game state, dealing the next card, and determining the winner of the round. | Coordinates the game, ensuring turns are sequential after a match is resolved. |
-| **PlayerHandlerThread** (Two Instances) | Simultaneously listens for a player's `MATCH <ICON>` command and records the exact submission time. | Enables the "first-to-click" rule by logging concurrent, real-time input from both players. |
-
----
-
-## 4. Implementation Details (How it will be built)
-
-### 4.1 The Card Generation Algorithm
-The key to the game is the mathematical guarantee that any two cards share exactly one icon. This requires a specific algorithm based on **Finite Projective Planes** (the geometry behind the Dobble game), where the number of cards, icons per card, and total icons relate to a prime number $p$.
-
-1.  **$p$ Selection**: For $N=8$ icons per card, $p$ should be 7.
-2.  **Total Icons**: The total number of unique icons $I$ required is $p^2 + p + 1 = 7^2 + 7 + 1 = \mathbf{57}$ (the 20 icons mentioned by the user is likely a simplification, the math requires 57 icons for 57 cards). We will use a subset of this math for 54 cards.
-3.  **Implementation**: The server will use three families of cards (sets of icons) based on algebraic equations to generate the icons, ensuring the one-match rule is satisfied before the game starts.
-
-### 4.2 Player Submission and Match Resolution
-1.  **Server Deal**: The server prints the Center Card's icons to both clients and sets a timer.
-2.  **Player Input**: Players submit: `MATCH <IconName>`.
-3.  **Resolution Logic**:
-    *   The `PlayerHandlerThread` for each player receives the input and records its timestamp.
-    *   The `GameServer` checks which thread submitted the answer first (`min(timestamp_1, timestamp_2)`).
-    *   The answer from the fastest player is checked against the correct match (using the polymorphic `findMatch()` logic).
-    *   If correct, the card is awarded, the player's `activeCard` is updated, and the new score is announced.
-    *   If incorrect, an Exception is thrown, the card is not awarded, and the slow player is given a chance.
-
-This structure ensures that the logic is clean, the OOP principles are fully utilized, and the core complexity (threading and card math) is directly addressed.
+## 7. Technologies Used
+*   **Java 21**: Core programming language.
+*   **JavaFX**: For the rich, responsive User Interface.
+*   **SQLite (JDBC)**: For lightweight, serverless database storage.
+*   **Maven**: For dependency management and building.

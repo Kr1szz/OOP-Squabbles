@@ -10,7 +10,11 @@ import javafx.scene.control.Label;
 import javafx.scene.layout.VBox;
 
 public class WelcomeView {
+    private javafx.scene.control.TextField nameField;
+
     public Scene getScene() {
+        com.squabbles.util.DatabaseManager.initialize();
+
         VBox root = new VBox(20);
         root.setAlignment(Pos.CENTER);
         root.getStyleClass().add("root");
@@ -18,41 +22,97 @@ public class WelcomeView {
         Label titleLabel = new Label("OOP Squabbles (Icon Matcher Game)");
         titleLabel.getStyleClass().add("header-label");
 
-        Button singlePlayerButton = new Button("Single Player");
-        singlePlayerButton.setOnAction(e -> startSinglePlayer());
+        nameField = new javafx.scene.control.TextField();
+        nameField.setPromptText("Enter your name");
+        nameField.setMaxWidth(200);
+
+        Button submitNameButton = new Button("Submit Name");
+        Label welcomeLabel = new Label();
+        welcomeLabel.getStyleClass().add("message-label");
+
+        Button singlePlayerButton = new Button("Single Player (vs Bot)");
+        singlePlayerButton.setOnAction(e -> startSinglePlayer(true));
+        singlePlayerButton.setDisable(true);
+
+        Button practiceButton = new Button("Practice Mode (No AI)");
+        practiceButton.setOnAction(e -> startSinglePlayer(false));
+        practiceButton.setDisable(true);
 
         Button multiplayerButton = new Button("Multiplayer");
-        multiplayerButton.setOnAction(e -> Main.setScene(new SessionSetupView().getScene()));
+        multiplayerButton.setOnAction(e -> Main.setScene(new SessionSetupView(nameField.getText().trim()).getScene()));
+        multiplayerButton.setDisable(true);
 
-        root.getChildren().addAll(titleLabel, singlePlayerButton, multiplayerButton);
+        submitNameButton.setOnAction(e -> {
+            String name = nameField.getText().trim();
+            if (!name.isEmpty()) {
+                com.squabbles.util.DatabaseManager.addPlayer(name);
+                welcomeLabel.setText("Welcome, " + name + "!");
+                singlePlayerButton.setDisable(false);
+                practiceButton.setDisable(false);
+                multiplayerButton.setDisable(false);
+                nameField.setDisable(true);
+                submitNameButton.setDisable(true);
+            }
+        });
+
+        root.getChildren().addAll(titleLabel, nameField, submitNameButton, welcomeLabel, singlePlayerButton, practiceButton, multiplayerButton);
 
         return new Scene(root, 800, 600);
     }
 
-    private void startSinglePlayer() {
-        // Start a local server for 1 player
-        // Start a local server for 1 player
-        // Let's pick a random port between 50000 and 60000
+    private void startSinglePlayer(boolean withBot) {
+        String name = nameField.getText().trim();
+        if (name.isEmpty()) {
+            name = "Player";
+        }
+        com.squabbles.util.DatabaseManager.addPlayer(name);
+        final String playerName = name;
+
+        // Start a local server for 1 player (plus bot)
         int randomPort = 50000 + (int) (Math.random() * 10000);
 
-        GameServer server = new GameServer(randomPort, 1);
+        GameServer server = new GameServer(randomPort);
         new Thread(server).start();
 
-        // Connect client
-        GameClient client = new GameClient();
-        try {
-            // We need to wait a bit for server to start? Usually fast enough.
-            // But to be safe, we can retry or just sleep briefly.
-            Thread.sleep(100);
-
-            client.connect("localhost", randomPort, message -> {
-                        if (message.startsWith(com.squabbles.network.NetworkProtocol.MSG_START_GAME)) {
-                    // false => single-player mode (no 25-points message)
-                    javafx.application.Platform.runLater(() -> Main.setScene(new GameView(client, false).getScene()));
+        // Connect client in a background thread to avoid freezing UI
+        new Thread(() -> {
+            GameClient client = new GameClient();
+            try {
+                // Retry logic for connection
+                boolean connected = false;
+                for (int i = 0; i < 10; i++) {
+                    try {
+                        Thread.sleep(200); // Wait for server start
+                        client.connect("localhost", randomPort, message -> {
+                            if (message.startsWith(com.squabbles.network.NetworkProtocol.MSG_WELCOME)) {
+                                // Request Bot Game if needed
+                                if (withBot) {
+                                    client.sendMessage(com.squabbles.network.NetworkProtocol.MSG_PLAY_BOT + " 1 " + playerName); // Difficulty 1
+                                } else {
+                                    client.sendMessage(com.squabbles.network.NetworkProtocol.MSG_PLAY_BOT + " 0 " + playerName); // 0 = Practice/No Bot
+                                }
+                            } else if (message.startsWith(com.squabbles.network.NetworkProtocol.MSG_START_GAME)) {
+                                javafx.application.Platform.runLater(() -> Main.setScene(new GameView(client, false, playerName).getScene()));
+                            } else if (message.startsWith(com.squabbles.network.NetworkProtocol.MSG_TURN_UPDATE)) {
+                                // Ensure turn updates are handled
+                            }
+                        });
+                        connected = true;
+                        break;
+                    } catch (Exception e) {
+                        System.out.println("Connection attempt " + (i + 1) + " failed. Retrying...");
+                    }
                 }
-            });
-        } catch (Exception ex) {
-            ex.printStackTrace();
-        }
+                
+                if (!connected) {
+                    javafx.application.Platform.runLater(() -> {
+                        System.err.println("Failed to connect to local server.");
+                    });
+                }
+
+            } catch (Exception ex) {
+                ex.printStackTrace();
+            }
+        }).start();
     }
 }

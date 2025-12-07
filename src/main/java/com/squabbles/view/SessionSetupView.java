@@ -7,21 +7,28 @@ import com.squabbles.network.NetworkProtocol;
 import javafx.application.Platform;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
-import javafx.scene.control.Button;
-import javafx.scene.control.Label;
-import javafx.scene.control.TextField;
+import javafx.scene.control.*;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
 import javafx.scene.layout.VBox;
+import javafx.scene.layout.HBox;
+import javafx.scene.text.TextAlignment;
 
+import java.io.BufferedReader;
 import java.io.IOException;
-import java.net.ServerSocket;
-import java.net.InetAddress;
+import java.io.InputStreamReader;
+import java.net.*;
+import java.util.Enumeration;
 
 public class SessionSetupView {
     private Label statusLabel;
     private GameClient client;
     private GameServer server; // Keep reference to stop if needed, or just let it run
+    private String playerName;
+
+    public SessionSetupView(String playerName) {
+        this.playerName = playerName;
+    }
 
     public Scene getScene() {
         VBox root = new VBox(20);
@@ -34,37 +41,76 @@ public class SessionSetupView {
         // Host Section
         VBox hostBox = new VBox(10);
         hostBox.setAlignment(Pos.CENTER);
-        Button hostButton = new Button("Generate Unique Game ID (Host)");
-        Label gameIdLabel = new Label();
-        gameIdLabel.getStyleClass().add("status-label");
+        hostBox.setStyle(
+                "-fx-padding: 20; -fx-background-color: rgba(255, 255, 255, 0.05); -fx-background-radius: 10;");
 
-        Button copyHostInfoButton = new Button("Copy Host Details");
-        copyHostInfoButton.getStyleClass().add("secondary-button");
-        copyHostInfoButton.setDisable(true);
+        Label hostTitle = new Label("Host a Game");
+        hostTitle.setStyle("-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: white;");
 
-        hostBox.getChildren().addAll(hostButton, gameIdLabel, copyHostInfoButton);
+        Button hostButton = new Button("Start Server");
+        Label localIpLabel = new Label("Local IP: Not Started");
+        localIpLabel.getStyleClass().add("status-label");
+
+        Label publicIpLabel = new Label("Public IP: (Click 'Start Server' to fetch)");
+        publicIpLabel.getStyleClass().add("status-label");
+        publicIpLabel.setStyle("-fx-font-size: 12px; -fx-text-fill: #aaaaaa;");
+
+        Label portLabel = new Label("Port: -");
+        portLabel.getStyleClass().add("status-label");
+
+        Button copyLocalInfoButton = new Button("Copy Local Info");
+        copyLocalInfoButton.getStyleClass().add("secondary-button");
+        copyLocalInfoButton.setDisable(true);
+
+        Button copyPublicInfoButton = new Button("Copy Public Info");
+        copyPublicInfoButton.getStyleClass().add("secondary-button");
+        copyPublicInfoButton.setDisable(true);
+
+        HBox copyButtons = new HBox(10, copyLocalInfoButton, copyPublicInfoButton);
+        copyButtons.setAlignment(Pos.CENTER);
+
+        Label wanWarning = new Label(
+                "For different WiFi/Networks, use Public IP.\nEnsure Port Forwarding is enabled on your router!");
+        wanWarning.setTextAlignment(TextAlignment.CENTER);
+        wanWarning.setStyle("-fx-font-size: 10px; -fx-text-fill: #ffaa00; -fx-font-style: italic;");
+
+        hostBox.getChildren().addAll(hostTitle, hostButton, localIpLabel, publicIpLabel, portLabel, copyButtons,
+                wanWarning);
 
         // Join Section
         VBox joinBox = new VBox(10);
         joinBox.setAlignment(Pos.CENTER);
+        joinBox.setStyle(
+                "-fx-padding: 20; -fx-background-color: rgba(255, 255, 255, 0.05); -fx-background-radius: 10;");
 
-        TextField ipField = new TextField("localhost");
-        ipField.setPromptText("Enter Host IP");
-        ipField.setMaxWidth(200);
+        Label joinTitle = new Label("Join a Game");
+        joinTitle.setStyle("-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: white;");
+
+        TextField ipField = new TextField();
+        ipField.setPromptText("Enter Host IP (e.g., 192.168.1.5)");
+        ipField.setMaxWidth(250);
 
         TextField gameIdField = new TextField();
-        gameIdField.setPromptText("Enter Game ID (Port)");
-        gameIdField.setMaxWidth(200);
+        gameIdField.setPromptText("Enter Port (e.g., 55555)");
+        gameIdField.setMaxWidth(250);
 
         Button joinButton = new Button("Join Game");
-        joinBox.getChildren().addAll(ipField, gameIdField, joinButton);
+        joinBox.getChildren().addAll(joinTitle, ipField, gameIdField, joinButton);
 
         statusLabel = new Label("Select an option...");
         statusLabel.getStyleClass().add("status-label");
 
         Button backButton = new Button("Back to Main Menu");
         backButton.getStyleClass().add("secondary-button");
-        backButton.setOnAction(e -> Main.setScene(new WelcomeView().getScene()));
+        backButton.setOnAction(e -> {
+            if (server != null) {
+                server.stop();
+            }
+            if (client != null) {
+                client.disconnect();
+            }
+            Main.setScene(new WelcomeView().getScene());
+        });
 
         // Logic
         client = new GameClient();
@@ -72,38 +118,42 @@ public class SessionSetupView {
         hostButton.setOnAction(e -> {
             // Start Server on a random high port to avoid "Address already in use"
             int port = generateRandomPort();
-            server = new GameServer(port, 2);
+            server = new GameServer(port);
             new Thread(server).start();
 
-            // Try to determine a useful local IP address to show to other players
-            String ipText = "unknown";
-            try {
-                String hostAddress = InetAddress.getLocalHost().getHostAddress();
-                ipText = hostAddress;
-            } catch (Exception ex) {
-                // If we can't resolve, fall back to localhost hint
-                ipText = "localhost";
-            }
+            // Get Local IP
+            String localIp = getLocalIpAddress();
+            localIpLabel.setText("Local IP: " + localIp);
+            portLabel.setText("Port: " + port);
 
-            String hostInfo = "Host IP: " + ipText + " | Game ID: " + port;
-            gameIdLabel.setText(hostInfo);
+            // Fetch Public IP in background
+            new Thread(() -> {
+                String publicIp = getPublicIpAddress();
+                Platform.runLater(() -> publicIpLabel.setText("Public IP: " + publicIp));
+            }).start();
+
             statusLabel.setText("Waiting for Player 2...");
             hostButton.setDisable(true);
             joinButton.setDisable(true); // Can't join if hosting in this simple UI
-            copyHostInfoButton.setDisable(false);
+            copyLocalInfoButton.setDisable(false);
+            copyPublicInfoButton.setDisable(false);
 
             // Connect as Player 1
             connectToServer("localhost", port);
         });
 
-        copyHostInfoButton.setOnAction(e -> {
-            String text = gameIdLabel.getText();
-            if (text != null && !text.isEmpty()) {
-                ClipboardContent content = new ClipboardContent();
-                content.putString(text);
-                Clipboard.getSystemClipboard().setContent(content);
-                statusLabel.setText("Host details copied to clipboard.");
-            }
+        copyLocalInfoButton.setOnAction(e -> {
+            String text = "IP: " + localIpLabel.getText().replace("Local IP: ", "") + " | Port: "
+                    + portLabel.getText().replace("Port: ", "");
+            copyToClipboard(text);
+            statusLabel.setText("Local Host details copied.");
+        });
+
+        copyPublicInfoButton.setOnAction(e -> {
+            String text = "IP: " + publicIpLabel.getText().replace("Public IP: ", "") + " | Port: "
+                    + portLabel.getText().replace("Port: ", "");
+            copyToClipboard(text);
+            statusLabel.setText("Public Host details copied. Ensure Port Forwarding!");
         });
 
         joinButton.setOnAction(e -> {
@@ -115,7 +165,7 @@ public class SessionSetupView {
                 return;
             }
             if (idStr.isEmpty()) {
-                statusLabel.setText("Please enter a Game ID.");
+                statusLabel.setText("Please enter a Port.");
                 return;
             }
 
@@ -124,7 +174,7 @@ public class SessionSetupView {
                 statusLabel.setText("Connecting to " + ip + "...");
                 connectToServer(ip, port);
             } catch (NumberFormatException ex) {
-                statusLabel.setText("Invalid Game ID.");
+                statusLabel.setText("Invalid Port.");
             }
         });
 
@@ -133,9 +183,17 @@ public class SessionSetupView {
         return new Scene(root, 800, 600);
     }
 
+    private void copyToClipboard(String text) {
+        ClipboardContent content = new ClipboardContent();
+        content.putString(text);
+        Clipboard.getSystemClipboard().setContent(content);
+    }
+
     private void connectToServer(String host, int port) {
         try {
             client.connect(host, port, this::handleMessage);
+            // Auto-join queue upon connection for this simple UI
+            client.sendMessage(NetworkProtocol.MSG_JOIN_QUEUE + " " + playerName);
         } catch (IOException e) {
             statusLabel.setText("Connection Failed: " + e.getMessage());
             e.printStackTrace();
@@ -158,18 +216,57 @@ public class SessionSetupView {
         return NetworkProtocol.PORT;
     }
 
+    private String getLocalIpAddress() {
+        try {
+            Enumeration<NetworkInterface> interfaces = NetworkInterface.getNetworkInterfaces();
+            while (interfaces.hasMoreElements()) {
+                NetworkInterface iface = interfaces.nextElement();
+                if (iface.isLoopback() || !iface.isUp())
+                    continue;
+
+                Enumeration<InetAddress> addresses = iface.getInetAddresses();
+                while (addresses.hasMoreElements()) {
+                    InetAddress addr = addresses.nextElement();
+                    // Check for site-local address (192.168.x.x, 10.x.x.x, etc.) and IPv4
+                    if (addr.isSiteLocalAddress() && addr instanceof Inet4Address) {
+                        return addr.getHostAddress();
+                    }
+                }
+            }
+            // Fallback
+            return InetAddress.getLocalHost().getHostAddress();
+        } catch (Exception e) {
+            return "localhost";
+        }
+    }
+
+    private String getPublicIpAddress() {
+        try {
+            URL url = new URL("https://checkip.amazonaws.com");
+            URLConnection con = url.openConnection();
+            con.setConnectTimeout(3000);
+            con.setReadTimeout(3000);
+            BufferedReader br = new BufferedReader(new InputStreamReader(con.getInputStream()));
+            return br.readLine().trim();
+        } catch (Exception e) {
+            return "Unknown (Check manually)";
+        }
+    }
+
     private void handleMessage(String message) {
         if (message.startsWith(NetworkProtocol.MSG_WELCOME)) {
             String playerId = message.split(" ")[1];
             Platform.runLater(
-                    () -> statusLabel.setText("Connected as Player " + playerId + ". Waiting for game start..."));
-        } else if (message.startsWith(NetworkProtocol.MSG_PLAYER_JOINED)) {
-            String count = message.split(" ")[1];
-            Platform.runLater(() -> statusLabel.setText("Player joined! " + count));
+                    () -> statusLabel.setText("Connected as Player " + playerId + ". Joined Queue..."));
+        } else if (message.startsWith(NetworkProtocol.MSG_JOIN_QUEUE)) {
+            Platform.runLater(
+                    () -> statusLabel.setText(message.substring(NetworkProtocol.MSG_JOIN_QUEUE.length() + 1)));
+        } else if (message.startsWith(NetworkProtocol.MSG_GAME_FOUND)) {
+            Platform.runLater(() -> statusLabel.setText("Match Found! Starting..."));
         } else if (message.startsWith(NetworkProtocol.MSG_START_GAME)) {
             Platform.runLater(() -> {
                 // Transition to GameView (true => multiplayer mode)
-                Main.setScene(new GameView(client, true).getScene());
+                Main.setScene(new GameView(client, true, playerName).getScene());
             });
         }
     }

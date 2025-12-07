@@ -16,20 +16,21 @@ public class IconLoader {
 
     // Brand‑new colorful emoji set for all 57 math icons
     // Index 0 is unused; IDs 1‑57 map directly into this array.
+    // Colorful, distinct emoji set for 57 icons
     private static final String[] EMOJI_FALLBACKS = {
             "?", // 0 (unused)
-            // 1‑10
-            "🔴", "🟠", "🟡", "🟢", "🔵", "🟣", "🟤", "⚪", "⚫", "🟥",
-            // 11‑20
-            "🟧", "🟨", "🟩", "🟦", "🟪", "⬛", "⬜", "🔺", "🔻", "🔷",
-            // 21‑30
-            "🔶", "🔸", "🔹", "⭐", "🌟", "✨", "💫", "💥", "🔥", "⚡",
-            // 31‑40
-            "🌈", "☄️", "🌙", "☀️", "🌎", "🌍", "🌏", "🪐", "🌌", "🌠",
-            // 41‑50
-            "🎯", "🎲", "🧩", "🎮", "🎵", "🎶", "🎧", "📀", "💎", "🔑",
-            // 51‑57
-            "💠", "🔰", "🌀", "♠️", "♥️", "♦️", "♣️"
+            // 1-10: Animals & Nature
+            "🦁", "🐯", "🐻", "🐨", "🐼", "🐸", "🐙", "🦄", "🦋", "🦖",
+            // 11-20: Food & Drink
+            "🍎", "🥑", "🍕", "🍔", "🌮", "🍩", "🍪", "🍿", "🥤", "🍉",
+            // 21-30: Activities & Objects
+            "⚽", "🏀", "🏈", "🎾", "🎸", "🎨", "🚀", "🛸", "💎", "🎁",
+            // 31-40: Travel & Places
+            "🚗", "✈️", "🚢", "🏝️", "🌋", "🏰", "🎡", "🎢", "⛺", "🗽",
+            // 41-50: Symbols & Hearts
+            "❤️", "🧡", "💛", "💚", "💙", "💜", "🖤", "💯", "🔥", "✨",
+            // 51-57: Weather & Celestial
+            "☀️", "🌙", "⭐", "🌈", "⚡", "❄️", "🌪️"
     };
 
     private IconLoader() {
@@ -56,7 +57,15 @@ public class IconLoader {
      * @return Always null, so callers fall back to emoji rendering.
      */
     public Image loadIcon(int iconId) {
-        // We no longer use PNG resources; rely entirely on emoji fallbacks.
+        try {
+            String path = String.format("/icons/icon_%02d.png", iconId);
+            InputStream stream = getClass().getResourceAsStream(path);
+            if (stream != null) {
+                return new Image(stream);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
         return null;
     }
 

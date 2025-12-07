@@ -1,4 +1,4 @@
-package server.model;
+package com.squabbles.model;
 
 import java.util.Map;
 
@@ -13,7 +13,8 @@ public class ActionMessage {
     public final Map<String, Object> payload;
     public final long clientTimestamp;
 
-    public ActionMessage(String playerId, long sequenceNumber, String actionType, Map<String, Object> payload, long clientTimestamp) {
+    public ActionMessage(String playerId, long sequenceNumber, String actionType, Map<String, Object> payload,
+            long clientTimestamp) {
         this.playerId = playerId;
         this.sequenceNumber = sequenceNumber;
         this.actionType = actionType;

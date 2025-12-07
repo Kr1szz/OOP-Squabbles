@@ -9,8 +9,10 @@ import javafx.scene.layout.VBox;
 
 public class GameOverView {
     private String winnerText;
+    private String playerName;
 
-    public GameOverView(String winnerText) {
+    public GameOverView(String winnerText, String playerName) {
+        this.playerName = playerName;
         if (winnerText != null && winnerText.startsWith("GAME_OVER")) {
             String[] parts = winnerText.split(" ", 2);
             this.winnerText = parts.length > 1 ? parts[1].trim() : "Unknown";
@@ -27,11 +29,11 @@ public class GameOverView {
         Label header = new Label("Game Over!");
         header.getStyleClass().add("header-label");
 
-        Label winnerLabel = new Label("Winner: " + winnerText);
+        Label winnerLabel = new Label(winnerText);
         winnerLabel.setStyle("-fx-font-size: 28px; -fx-text-fill: #ffd700; -fx-font-weight: bold;");
 
         Button playAgainButton = new Button("Play Again");
-        playAgainButton.setOnAction(e -> Main.setScene(new SessionSetupView().getScene()));
+        playAgainButton.setOnAction(e -> Main.setScene(new SessionSetupView(playerName).getScene()));
 
         Button exitButton = new Button("Main Menu");
         exitButton.setOnAction(e -> Main.setScene(new WelcomeView().getScene()));

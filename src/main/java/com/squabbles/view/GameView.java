@@ -27,10 +27,13 @@ import javafx.util.Duration;
 import java.util.Random;
 import java.util.Timer;
 import java.util.TimerTask;
+import javafx.scene.control.ProgressBar;
+import javafx.animation.Timeline;
+import javafx.animation.KeyFrame;
+import javafx.animation.KeyValue;
 
 public class GameView {
     private GameClient client;
-    private final boolean multiplayer;
 
     private StackPane root;
     private VBox gameLayout;
@@ -50,13 +53,16 @@ public class GameView {
     // Per-turn click lock: one attempt at a time per player
     private boolean canClick = true;
 
-    private static final String MULTI_INSTRUCTION =
-            "Your turn! First to 25 points wins. Find the matching icon.";
+    private static final String MULTI_INSTRUCTION = "Your turn! First to 10 points wins. Find the matching icon.";
     private static final String SINGLE_INSTRUCTION = "Match as many icons as you can!";
 
-    public GameView(GameClient client, boolean multiplayer) {
+    private final boolean multiplayer;
+    private final String playerName;
+
+    public GameView(GameClient client, boolean multiplayer, String playerName) {
         this.client = client;
         this.multiplayer = multiplayer;
+        this.playerName = playerName;
     }
 
     public Scene getScene() {
@@ -71,12 +77,24 @@ public class GameView {
         // Score label with CSS class
         scoreLabel = new Label("Score: 0");
         scoreLabel.getStyleClass().add("score-label");
+        
+        // Lives label
+        livesLabel = new Label("Lives: 5");
+        livesLabel.getStyleClass().add("score-label"); // Reuse style for now
+        livesLabel.setTextFill(Color.RED);
+
+        // Turn Timer Bar
+        turnTimerBar = new javafx.scene.control.ProgressBar(1.0);
+        turnTimerBar.setPrefWidth(200);
+        turnTimerBar.setStyle("-fx-accent: #00d2ff;");
+
         // Message label with CSS class
         String initialText = multiplayer ? MULTI_INSTRUCTION : SINGLE_INSTRUCTION;
         messageLabel = new Label(initialText);
         messageLabel.getStyleClass().add("message-label");
+        
         // Assemble top bar
-        topBar.getChildren().addAll(endButton, scoreLabel, messageLabel);
+        topBar.getChildren().addAll(endButton, scoreLabel, livesLabel, turnTimerBar, messageLabel);
 
         // Cards container
         cardsContainer = new HBox(50);
@@ -108,6 +126,10 @@ public class GameView {
         return new Scene(root, 1000, 700);
     }
 
+    private Label livesLabel;
+    private javafx.scene.control.ProgressBar turnTimerBar;
+    private javafx.animation.Timeline timerAnimation;
+
     private void handleMessage(String message) {
         if (message.startsWith(NetworkProtocol.MSG_UPDATE_CARDS)) {
             // Format: UPDATE_CARDS CenterCard PlayerCard
@@ -118,34 +140,42 @@ public class GameView {
                 Platform.runLater(() -> updateBoard(centerData, playerData));
             }
         } else if (message.startsWith(NetworkProtocol.MSG_MATCH_RESULT)) {
-            // MSG_MATCH_RESULT success score
+            // MSG_MATCH_RESULT success score lives [reason]
             String[] parts = message.split(" ");
             boolean success = Boolean.parseBoolean(parts[1]);
-            int score = Integer.parseInt(parts[2]);
+            int newScore = Integer.parseInt(parts[2]);
+            int tempLives = 5;
+            if (parts.length > 3) {
+                try {
+                    tempLives = Integer.parseInt(parts[3]);
+                } catch (NumberFormatException e) {
+                    // ignore
+                }
+            }
+            final int newLives = tempLives;
 
             Platform.runLater(() -> {
-                scoreLabel.setText("Score: " + score);
-
+                scoreLabel.setText("Score: " + newScore);
+                livesLabel.setText("Lives: " + newLives);
+                
+                long currentTime = System.currentTimeMillis();
                 if (success) {
-                    messageLabel.setText("Correct! +1");
-                    messageLabel.setTextFill(Color.LIMEGREEN);
-                    showFloatingFeedback(lastClickX, lastClickY, "+1", Color.LIMEGREEN);
-
+                    messageLabel.setText("Match Found! +1");
+                    messageLabel.setTextFill(Color.LIGHTGREEN);
+                    showFloatingFeedback(lastClickX, lastClickY, "+1", Color.LIGHTGREEN);
+                    
                     // Combo Logic
-                    long currentTime = System.currentTimeMillis();
-                    if (currentTime - lastMatchTime < 3000) { // 3 seconds window
+                    if (currentTime - lastMatchTime < 2000) {
                         comboCount++;
-                        if (comboCount > 1) {
-                            showFloatingFeedback(lastClickX, lastClickY - 50, "Combo x" + comboCount + "!", Color.GOLD);
-                        }
+                        showFloatingFeedback(lastClickX, lastClickY - 50, "COMBO x" + comboCount + "!", Color.ORANGE);
                     } else {
                         comboCount = 1;
                     }
                     lastMatchTime = currentTime;
                 } else {
-                    messageLabel.setText("Wrong! -1");
+                    messageLabel.setText("Wrong! -1 Life");
                     messageLabel.setTextFill(Color.RED);
-                    showFloatingFeedback(lastClickX, lastClickY, "-1", Color.RED);
+                    showFloatingFeedback(lastClickX, lastClickY, "-1 Life", Color.RED);
                 }
 
                 // Auto-remove feedback after 1 second
@@ -153,19 +183,44 @@ public class GameView {
                     @Override
                     public void run() {
                         Platform.runLater(() -> {
-                            String base = multiplayer ? MULTI_INSTRUCTION : SINGLE_INSTRUCTION;
-                            messageLabel.setText(base);
+                            // Don't reset text here, let turn update handle it
                             messageLabel.setTextFill(Color.WHITE);
                         });
                     }
                 }, 1000);
+            });
+        } else if (message.startsWith(NetworkProtocol.MSG_TURN_UPDATE)) {
+            // MSG_TURN_UPDATE playerId
+            String[] parts = message.split(" ");
+            int turnPlayerId = Integer.parseInt(parts[1]);
 
-                // After result, allow the player to act again (one attempt at a time)
-                canClick = true;
+            Platform.runLater(() -> {
+                if (client.getPlayerId() == turnPlayerId) {
+                    messageLabel.setText("Your Turn!");
+                    messageLabel.setTextFill(Color.YELLOW);
+                    canClick = true;
+                } else {
+                    messageLabel.setText("Player " + turnPlayerId + "'s Turn");
+                    messageLabel.setTextFill(Color.WHITE);
+                    canClick = false;
+                }
+                resetTimer();
             });
         } else if (message.startsWith(NetworkProtocol.MSG_GAME_OVER)) {
-            Platform.runLater(() -> Main.setScene(new GameOverView(message).getScene()));
+            Platform.runLater(() -> Main.setScene(new GameOverView(message, playerName).getScene()));
         }
+    }
+
+    private void resetTimer() {
+        if (timerAnimation != null) {
+            timerAnimation.stop();
+        }
+        turnTimerBar.setProgress(1.0);
+        timerAnimation = new javafx.animation.Timeline(
+            new javafx.animation.KeyFrame(Duration.ZERO, new javafx.animation.KeyValue(turnTimerBar.progressProperty(), 1.0)),
+            new javafx.animation.KeyFrame(Duration.seconds(10), new javafx.animation.KeyValue(turnTimerBar.progressProperty(), 0.0))
+        );
+        timerAnimation.play();
     }
 
     private void showFloatingFeedback(double x, double y, String text, Color color) {
@@ -235,7 +290,8 @@ public class GameView {
             Image iconImage = IconLoader.getInstance().loadIcon(iconId);
 
             // Palette for per-icon base glow colours.
-            // We derive the color from iconId so the SAME icon looks the same on every card.
+            // We derive the color from iconId so the SAME icon looks the same on every
+            // card.
             String[] baseColors = {
                     "#f5a97f", "#8aadf4", "#a6da95", "#f5bde6",
                     "#c6a0f6", "#eed49f", "#f0c6c6", "#7dc4e4"
@@ -259,7 +315,7 @@ public class GameView {
 
                 // Random Sizing
                 double fontSize = (40 + random.nextInt(40)) * scale;
-                iconText.setFont(Font.font(fontSize));
+                iconText.setFont(Font.font("Segoe UI Emoji", fontSize));
 
                 // Per-emoji colorful glow effect
                 iconText.setStyle("-fx-effect: dropshadow(gaussian, " + baseColor + ", 8, 0.7, 0, 0);");
